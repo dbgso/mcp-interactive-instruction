@@ -76,9 +76,17 @@ export class MarkdownReader {
       };
     }
 
-    const filePath = path.join(this.directory, `${id}.md`);
-    await fs.writeFile(filePath, content, "utf-8");
-    return { success: true };
+    try {
+      await fs.mkdir(this.directory, { recursive: true });
+      const filePath = path.join(this.directory, `${id}.md`);
+      await fs.writeFile(filePath, content, "utf-8");
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Failed to add document: ${(error as Error).message}`,
+      };
+    }
   }
 
   async updateDocument(id: string, content: string): Promise<boolean> {
