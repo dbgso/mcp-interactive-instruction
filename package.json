@@ -1,0 +1,60 @@
+{
+  "name": "mcp-interactive-instruction",
+  "version": "0.0.0-development",
+  "description": "MCP server for interactive instruction documents - list, view, add, and update markdown files on demand",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "mcp-interactive-instruction": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build",
+    "start": "tsx src/index.ts",
+    "dev": "tsx src/index.ts",
+    "semantic-release": "semantic-release"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "markdown",
+    "instruction",
+    "documentation",
+    "claude",
+    "ai",
+    "llm"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dbgso/mcp-interactive-instruction.git"
+  },
+  "homepage": "https://github.com/dbgso/mcp-interactive-instruction#readme",
+  "bugs": {
+    "url": "https://github.com/dbgso/mcp-interactive-instruction/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@10.19.0",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.26.0",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.9",
+    "@vitest/coverage-v8": "4.0.18",
+    "semantic-release": "24.2.9",
+    "tsx": "4.21.0",
+    "typescript": "5.9.3",
+    "vitest": "4.0.18"
+  }
+}
