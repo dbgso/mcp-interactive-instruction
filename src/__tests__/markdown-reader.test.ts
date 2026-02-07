@@ -2,11 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { MarkdownReader } from "../services/markdown-reader.js";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const fixturesDir = path.join(__dirname, "fixtures");
-const tempDir = path.join(__dirname, "temp");
+const fixturesDir = path.join(process.cwd(), "src/__tests__/fixtures");
+const tempDir = path.join(process.cwd(), "src/__tests__/temp");
 
 describe("MarkdownReader", () => {
   describe("listDocuments", () => {
