@@ -2,6 +2,20 @@
 
 MCP server for interactive instruction documents. Enables AI agents to list, view, add, and update markdown files on demand instead of loading all documentation at once.
 
+## Why
+
+Traditional approach of loading large .md files (like `agents.md`, `skills.md`) at the start of a conversation has limitations:
+
+- **Context bloat**: All documentation occupies context space even when not needed
+- **Forgetting**: As conversation grows, AI gradually "forgets" earlier loaded content
+- **All or nothing**: No way to selectively refresh specific information
+
+This tool solves these problems by:
+
+- **Topic-based splitting**: Organize documentation into separate files by topic
+- **On-demand retrieval**: Fetch only what's needed, when it's needed
+- **Interactive recall**: AI can "remember" information by querying the MCP tool
+
 ## Features
 
 - **help**: List all documents with summaries, or get full content by ID
@@ -101,6 +115,47 @@ Content...
 ```
 
 The first paragraph after the `# Title` heading is used as the summary in the document list.
+
+## Example: Organizing AI Instructions
+
+Split your instruction files by topic:
+
+```
+docs/
+├── agents.md       # Agent behavior and capabilities
+├── skills.md       # Available skills and how to use them
+├── coding-style.md # Code formatting and conventions
+├── git-workflow.md # Commit message format, branch naming
+└── project.md      # Project-specific context
+```
+
+Example `.mcp.json` for a project:
+
+```json
+{
+  "mcpServers": {
+    "docs": {
+      "command": "npx",
+      "args": ["-y", "mcp-interactive-instruction", "./docs"]
+    }
+  }
+}
+```
+
+### Recommended Workflow
+
+**Important**: Always check the MCP tool before starting any task.
+
+```
+# At the start of each task, check available documentation
+help({})
+
+# Load relevant docs for the current task
+help({ id: "coding-style" })  # Before writing code
+help({ id: "git-workflow" })  # Before committing
+```
+
+This ensures the AI always has fresh context for the specific task at hand, rather than relying on potentially "forgotten" information from earlier in the conversation.
 
 ## License
 
