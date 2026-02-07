@@ -32,6 +32,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check npm version
+        run: npm --version
+
       - name: Build
         run: pnpm build
 
