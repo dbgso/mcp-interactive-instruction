@@ -50,12 +50,17 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
-    "@semantic-release/npm": "^13.1.4",
+    "@semantic-release/npm": "13.1.4",
     "@types/node": "22.19.9",
     "@vitest/coverage-v8": "4.0.18",
     "semantic-release": "24.2.9",
     "tsx": "4.21.0",
     "typescript": "5.9.3",
     "vitest": "4.0.18"
+  },
+  "pnpm": {
+    "overrides": {
+      "@semantic-release/npm": "13.1.4"
+    }
   }
 }
