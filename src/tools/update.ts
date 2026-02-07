@@ -8,7 +8,7 @@ export function registerUpdateTool(server: McpServer, markdownDir: string): void
   server.registerTool(
     "update",
     {
-      description: "Update an existing markdown document. Replaces the entire content.",
+      description: "Update an existing markdown document. Replaces the entire content. When updating, maintain the single-topic focus. The first paragraph after the title becomes the summary shown in the document list, so make it descriptive enough for AI to identify when this document is relevant.",
       inputSchema: {
         id: z.string().describe("Document ID (filename without .md extension)"),
         content: z.string().describe("New full markdown content of the document"),

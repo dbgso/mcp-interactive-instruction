@@ -114,7 +114,22 @@ Summary paragraph that appears in the document list.
 Content...
 ```
 
-The first paragraph after the `# Title` heading is used as the summary in the document list.
+The first paragraph after the `# Title` heading is used as the summary in the document list. **Make this summary descriptive enough for AI to identify when this document is relevant.**
+
+### Granularity Guidelines
+
+Keep each document focused on **ONE topic** for maximum reusability:
+
+| Instead of | Split into |
+|------------|------------|
+| `git.md` (everything about git) | `git-workflow.md` (process/flow) + `git-commands.md` (specific syntax) |
+| `api.md` (all API docs) | `api-overview.md` (architecture) + `api-endpoints.md` (reference) |
+| `coding.md` (all conventions) | `naming.md` + `error-handling.md` + `testing.md` |
+
+**Why this matters:**
+- AI can load only what's needed (e.g., forgot a command? load just `git-commands.md`)
+- Summaries become more specific and easier to match
+- Updates to one aspect don't require reloading unrelated content
 
 ## Example: Organizing AI Instructions
 

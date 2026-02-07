@@ -8,7 +8,7 @@ export function registerAddTool(server: McpServer, markdownDir: string): void {
   server.registerTool(
     "add",
     {
-      description: "Add a new markdown document. The ID becomes the filename (without .md extension).",
+      description: "Add a new markdown document. The ID becomes the filename (without .md extension). Keep each document focused on ONE topic for reusability. Separate overview/flow documents from specific command references. Example: 'git-workflow' for the process, 'git-commands' for specific command syntax. This allows targeted recall without loading unrelated content.",
       inputSchema: {
         id: z.string().describe("Document ID (will be used as filename without .md)"),
         content: z.string().describe("Full markdown content of the document"),
