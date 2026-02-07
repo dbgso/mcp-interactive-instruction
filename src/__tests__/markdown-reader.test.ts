@@ -93,7 +93,7 @@ describe("MarkdownReader", () => {
 
       const result = await reader.addDocument(id, content);
 
-      expect(result.success).toBe(true);
+      expect(result.success, `addDocument failed: ${result.error}`).toBe(true);
       const saved = await reader.getDocumentContent(id);
       expect(saved).toBe(content);
     });
