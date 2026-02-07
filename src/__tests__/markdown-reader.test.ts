@@ -7,14 +7,14 @@ const fixturesDir = path.join(process.cwd(), "src/__tests__/fixtures");
 const tempDir = path.join(process.cwd(), "src/__tests__/temp");
 
 describe("MarkdownReader", () => {
-  describe("listDocuments", () => {
+  describe("listDocuments (flat)", () => {
     it.each([
       ["sample", "This is a sample document for testing purposes."],
       ["no-description", "(No description)"],
     ])("should return correct description for %s", async (id, expected) => {
       const reader = new MarkdownReader(fixturesDir);
-      const docs = await reader.listDocuments();
-      const doc = docs.find((d) => d.id === id);
+      const { documents } = await reader.listDocuments(undefined, true);
+      const doc = documents.find((d) => d.id === id);
 
       expect(doc).toBeDefined();
       expect(doc?.description).toBe(expected);
@@ -22,9 +22,9 @@ describe("MarkdownReader", () => {
 
     it("should sort documents by id", async () => {
       const reader = new MarkdownReader(fixturesDir);
-      const docs = await reader.listDocuments();
+      const { documents } = await reader.listDocuments(undefined, true);
 
-      const ids = docs.map((d) => d.id);
+      const ids = documents.map((d) => d.id);
       const sorted = [...ids].sort();
       expect(ids).toEqual(sorted);
     });
@@ -35,23 +35,35 @@ describe("MarkdownReader", () => {
 
     it.each([
       {
-        summaries: [],
+        documents: [],
+        categories: [],
         expected: "No markdown documents found.",
       },
       {
-        summaries: [{ id: "test", description: "Test doc" }],
+        documents: [{ id: "test", description: "Test doc" }],
+        categories: [],
         expected: "Available documents:\n\n- **test**: Test doc",
       },
       {
-        summaries: [
+        documents: [
           { id: "a", description: "Doc A" },
           { id: "b", description: "Doc B" },
         ],
+        categories: [],
         expected: "Available documents:\n\n- **a**: Doc A\n- **b**: Doc B",
       },
-    ])("formats $summaries.length documents correctly", ({ summaries, expected }) => {
-      expect(reader.formatDocumentList(summaries)).toBe(expected);
-    });
+      {
+        documents: [{ id: "root", description: "Root doc" }],
+        categories: [{ id: "git", docCount: 3 }],
+        expected:
+          "Available documents:\n\n**Categories:**\n- **git/** (3 docs)\n\n**Documents:**\n- **root**: Root doc",
+      },
+    ])(
+      "formats documents and categories correctly",
+      ({ documents, categories, expected }) => {
+        expect(reader.formatDocumentList(documents, categories)).toBe(expected);
+      }
+    );
   });
 
   describe("getDocumentContent", () => {
@@ -143,6 +155,214 @@ describe("MarkdownReader", () => {
     });
   });
 
+  describe("hierarchical structure", () => {
+    beforeEach(async () => {
+      await fs.mkdir(tempDir, { recursive: true });
+    });
+
+    afterEach(async () => {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    it("should create nested directories with __ separator", async () => {
+      const reader = new MarkdownReader(tempDir);
+
+      const result = await reader.addDocument(
+        "git__workflow",
+        "# Git Workflow\n\nHow to use git."
+      );
+
+      expect(result.success).toBe(true);
+
+      // Verify file was created in subdirectory
+      const filePath = path.join(tempDir, "git", "workflow.md");
+      const exists = await fs
+        .access(filePath)
+        .then(() => true)
+        .catch(() => false);
+      expect(exists).toBe(true);
+    });
+
+    it("should read nested documents by hierarchical ID", async () => {
+      const reader = new MarkdownReader(tempDir);
+
+      await reader.addDocument(
+        "api__auth__oauth",
+        "# OAuth\n\nOAuth authentication."
+      );
+      const content = await reader.getDocumentContent("api__auth__oauth");
+
+      expect(content).toContain("# OAuth");
+    });
+
+    it("should list categories at root level", async () => {
+      const reader = new MarkdownReader(tempDir);
+
+      await reader.addDocument("root-doc", "# Root\n\nRoot level doc.");
+      await reader.addDocument(
+        "git__workflow",
+        "# Git Workflow\n\nWorkflow doc."
+      );
+      await reader.addDocument("git__commands", "# Git Commands\n\nCommands.");
+
+      const { documents, categories } = await reader.listDocuments();
+
+      expect(documents).toHaveLength(1);
+      expect(documents[0].id).toBe("root-doc");
+      expect(categories).toHaveLength(1);
+      expect(categories[0]).toEqual({ id: "git", docCount: 2 });
+    });
+
+    it("should list documents in category", async () => {
+      const reader = new MarkdownReader(tempDir);
+
+      await reader.addDocument(
+        "git__workflow",
+        "# Git Workflow\n\nWorkflow doc."
+      );
+      await reader.addDocument("git__commands", "# Git Commands\n\nCommands.");
+      await reader.addDocument("git__branching", "# Branching\n\nBranching.");
+
+      const { documents, categories } = await reader.listDocuments("git");
+
+      expect(documents).toHaveLength(3);
+      expect(categories).toHaveLength(0);
+      expect(documents.map((d) => d.id).sort()).toEqual([
+        "git__branching",
+        "git__commands",
+        "git__workflow",
+      ]);
+    });
+
+    it("should list all documents recursively", async () => {
+      const reader = new MarkdownReader(tempDir);
+
+      await reader.addDocument("root", "# Root\n\nRoot doc.");
+      await reader.addDocument("git__workflow", "# Workflow\n\nWorkflow.");
+      await reader.addDocument("api__auth", "# Auth\n\nAuth.");
+
+      const { documents } = await reader.listDocuments(undefined, true);
+
+      expect(documents).toHaveLength(3);
+    });
+
+    it("should identify categories correctly", async () => {
+      const reader = new MarkdownReader(tempDir);
+
+      await reader.addDocument("git__workflow", "# Workflow\n\nWorkflow.");
+      await reader.addDocument("standalone", "# Standalone\n\nDoc.");
+
+      expect(await reader.isCategory("git")).toBe(true);
+      expect(await reader.isCategory("standalone")).toBe(false);
+      expect(await reader.isCategory("nonexistent")).toBe(false);
+    });
+
+    it("should invalidate cache after add", async () => {
+      const reader = new MarkdownReader(tempDir);
+
+      await reader.addDocument("first", "# First\n\nFirst doc.");
+      const { documents: before } = await reader.listDocuments(undefined, true);
+
+      await reader.addDocument("second", "# Second\n\nSecond doc.");
+      const { documents: after } = await reader.listDocuments(undefined, true);
+
+      expect(before).toHaveLength(1);
+      expect(after).toHaveLength(2);
+    });
+
+    it("should invalidate cache after update", async () => {
+      const reader = new MarkdownReader(tempDir);
+
+      await reader.addDocument("doc", "# Original\n\nOriginal description.");
+      const { documents: before } = await reader.listDocuments(undefined, true);
+
+      await reader.updateDocument("doc", "# Updated\n\nNew description here.");
+      const { documents: after } = await reader.listDocuments(undefined, true);
+
+      expect(before[0].description).toBe("Original description.");
+      expect(after[0].description).toBe("New description here.");
+    });
+
+    it("should delete document", async () => {
+      const reader = new MarkdownReader(tempDir);
+
+      await reader.addDocument("to-delete", "# Delete Me\n\nContent.");
+      expect(await reader.documentExists("to-delete")).toBe(true);
+
+      const result = await reader.deleteDocument("to-delete");
+      expect(result.success).toBe(true);
+      expect(await reader.documentExists("to-delete")).toBe(false);
+    });
+
+    it("should return error when deleting non-existent document", async () => {
+      const reader = new MarkdownReader(tempDir);
+
+      const result = await reader.deleteDocument("non-existent");
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not found");
+    });
+
+    it("should delete nested document and clean up empty dirs", async () => {
+      const reader = new MarkdownReader(tempDir);
+
+      await reader.addDocument("cat__sub__doc", "# Nested\n\nContent.");
+      const result = await reader.deleteDocument("cat__sub__doc");
+
+      expect(result.success).toBe(true);
+
+      // Check that empty directories were removed
+      const catExists = await import("node:fs/promises")
+        .then((fs) => fs.access(path.join(tempDir, "cat")))
+        .then(() => true)
+        .catch(() => false);
+      expect(catExists).toBe(false);
+    });
+
+    it("should rename document", async () => {
+      const reader = new MarkdownReader(tempDir);
+
+      await reader.addDocument("old-name", "# Doc\n\nContent.");
+      const result = await reader.renameDocument("old-name", "new-name");
+
+      expect(result.success).toBe(true);
+      expect(await reader.documentExists("old-name")).toBe(false);
+      expect(await reader.documentExists("new-name")).toBe(true);
+
+      const content = await reader.getDocumentContent("new-name");
+      expect(content).toContain("# Doc");
+    });
+
+    it("should rename document to different category", async () => {
+      const reader = new MarkdownReader(tempDir);
+
+      await reader.addDocument("root-doc", "# Doc\n\nContent.");
+      const result = await reader.renameDocument("root-doc", "category__doc");
+
+      expect(result.success).toBe(true);
+      expect(await reader.documentExists("root-doc")).toBe(false);
+      expect(await reader.documentExists("category__doc")).toBe(true);
+    });
+
+    it("should return error when renaming non-existent document", async () => {
+      const reader = new MarkdownReader(tempDir);
+
+      const result = await reader.renameDocument("non-existent", "new-name");
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not found");
+    });
+
+    it("should return error when renaming to existing document", async () => {
+      const reader = new MarkdownReader(tempDir);
+
+      await reader.addDocument("doc1", "# Doc 1\n\nContent.");
+      await reader.addDocument("doc2", "# Doc 2\n\nContent.");
+
+      const result = await reader.renameDocument("doc1", "doc2");
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("already exists");
+    });
+  });
+
   describe("parseDescription", () => {
     beforeEach(async () => {
       await fs.mkdir(tempDir, { recursive: true });
@@ -156,8 +376,7 @@ describe("MarkdownReader", () => {
       {
         name: "truncates long descriptions",
         content: `# Long\n\n${"A".repeat(200)}\n\n## Next`,
-        check: (desc: string) =>
-          desc.length === 150 && desc.endsWith("..."),
+        check: (desc: string) => desc.length === 150 && desc.endsWith("..."),
       },
       {
         name: "handles multi-line paragraphs",
@@ -173,8 +392,8 @@ describe("MarkdownReader", () => {
       const reader = new MarkdownReader(tempDir);
       await reader.addDocument("test", content);
 
-      const docs = await reader.listDocuments();
-      const doc = docs.find((d) => d.id === "test");
+      const { documents } = await reader.listDocuments(undefined, true);
+      const doc = documents.find((d) => d.id === "test");
 
       expect(check(doc!.description)).toBe(true);
     });

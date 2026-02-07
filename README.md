@@ -15,12 +15,16 @@ This tool solves these problems by:
 - **Topic-based splitting**: Organize documentation into separate files by topic
 - **On-demand retrieval**: Fetch only what's needed, when it's needed
 - **Interactive recall**: AI can "remember" information by querying the MCP tool
+- **Hierarchical organization**: Support for nested directories with progressive navigation
 
 ## Features
 
-- **help**: List all documents with summaries, or get full content by ID
-- **add**: Create new markdown documents
+- **help**: List documents/categories or get content by ID (supports hierarchical navigation)
+- **add**: Create new markdown documents (supports nested paths)
 - **update**: Update existing markdown documents
+- **delete**: Remove documents (cleans up empty directories)
+- **rename**: Rename or move documents to different paths
+- **Caching**: 1-minute cache for performance, auto-invalidated on write operations
 
 ## Installation
 
@@ -68,27 +72,48 @@ Or for a specific project, create `.mcp.json` in the project root:
 
 #### help
 
-List all documents or get content by ID.
+List documents/categories or get content by ID.
 
 ```
-# List all documents
+# List root level (shows categories and root documents)
 help({})
 → Available documents:
-  - agents: Description of agents...
-  - skills: Description of skills...
 
-# Get specific document
-help({ id: "agents" })
-→ (full content of agents.md)
+  **Categories:**
+  - **git/** (3 docs)
+  - **api/** (2 docs)
+
+  **Documents:**
+  - **coding-style**: Code formatting conventions...
+
+# Navigate into a category
+help({ id: "git" })
+→ Available documents:
+  - **git__workflow**: Git workflow process...
+  - **git__commands**: Common git commands...
+  - **git__branching**: Branch naming conventions...
+
+# Get specific document content
+help({ id: "git__workflow" })
+→ (full content of git/workflow.md)
+
+# List ALL documents at once (flat view)
+help({ recursive: true })
+→ All documents listed regardless of hierarchy
 ```
 
 #### add
 
-Create a new markdown document.
+Create a new markdown document. Use `__` for nested paths.
 
 ```
+# Create at root level
 add({ id: "new-guide", content: "# New Guide\n\nContent here..." })
 → Document "new-guide" created successfully.
+
+# Create in subdirectory (creates git/advanced.md)
+add({ id: "git__advanced", content: "# Advanced Git\n\nAdvanced topics..." })
+→ Document "git__advanced" created successfully.
 ```
 
 #### update
@@ -96,9 +121,60 @@ add({ id: "new-guide", content: "# New Guide\n\nContent here..." })
 Update an existing document.
 
 ```
-update({ id: "agents", content: "# Agents (Updated)\n\nNew content..." })
-→ Document "agents" updated successfully.
+update({ id: "git__workflow", content: "# Git Workflow (Updated)\n\nNew content..." })
+→ Document "git__workflow" updated successfully.
 ```
+
+#### delete
+
+Delete a document. Empty parent directories are automatically cleaned up.
+
+```
+delete({ id: "git__old-doc" })
+→ Document "git__old-doc" deleted successfully.
+```
+
+#### rename
+
+Rename or move a document to a different path.
+
+```
+# Rename within same directory
+rename({ oldId: "guide", newId: "tutorial" })
+→ Document renamed from "guide" to "tutorial" successfully.
+
+# Move to different category
+rename({ oldId: "misc__doc", newId: "git__doc" })
+→ Document renamed from "misc__doc" to "git__doc" successfully.
+```
+
+## Directory Structure
+
+Documents can be organized in nested directories:
+
+```
+docs/
+├── coding-style.md          → id: "coding-style"
+├── git/
+│   ├── workflow.md          → id: "git__workflow"
+│   ├── commands.md          → id: "git__commands"
+│   └── advanced/
+│       └── rebase.md        → id: "git__advanced__rebase"
+└── api/
+    ├── overview.md          → id: "api__overview"
+    └── endpoints.md         → id: "api__endpoints"
+```
+
+**ID Format**: Use `__` (double underscore) as the path separator.
+
+### Progressive Navigation vs Flat View
+
+| Mode | Command | Use Case |
+|------|---------|----------|
+| Progressive | `help({})` then `help({ id: "git" })` | Browse categories step by step |
+| Flat | `help({ recursive: true })` | See everything at once |
+
+Progressive navigation is useful when you have many documents and want to explore by category. Flat view is useful when you want to quickly find a specific document.
 
 ## Document Format
 
@@ -122,39 +198,30 @@ Keep each document focused on **ONE topic** for maximum reusability:
 
 | Instead of | Split into |
 |------------|------------|
-| `git.md` (everything about git) | `git-workflow.md` (process/flow) + `git-commands.md` (specific syntax) |
-| `api.md` (all API docs) | `api-overview.md` (architecture) + `api-endpoints.md` (reference) |
+| `git.md` (everything about git) | `git/workflow.md` + `git/commands.md` |
+| `api.md` (all API docs) | `api/overview.md` + `api/endpoints.md` |
 | `coding.md` (all conventions) | `naming.md` + `error-handling.md` + `testing.md` |
 
 **Why this matters:**
-- AI can load only what's needed (e.g., forgot a command? load just `git-commands.md`)
+- AI can load only what's needed (e.g., forgot a command? load just `git__commands`)
 - Summaries become more specific and easier to match
 - Updates to one aspect don't require reloading unrelated content
 
 ## Example: Organizing AI Instructions
 
-Split your instruction files by topic:
-
 ```
 docs/
-├── agents.md       # Agent behavior and capabilities
-├── skills.md       # Available skills and how to use them
-├── coding-style.md # Code formatting and conventions
-├── git-workflow.md # Commit message format, branch naming
-└── project.md      # Project-specific context
-```
-
-Example `.mcp.json` for a project:
-
-```json
-{
-  "mcpServers": {
-    "docs": {
-      "command": "npx",
-      "args": ["-y", "mcp-interactive-instruction", "./docs"]
-    }
-  }
-}
+├── overview.md         # High-level project context
+├── coding/
+│   ├── style.md        # Code formatting conventions
+│   ├── naming.md       # Naming conventions
+│   └── testing.md      # Testing guidelines
+├── git/
+│   ├── workflow.md     # Git workflow process
+│   └── commands.md     # Specific command reference
+└── api/
+    ├── overview.md     # API architecture
+    └── endpoints.md    # Endpoint reference
 ```
 
 ### Recommended Workflow
@@ -165,12 +232,21 @@ Example `.mcp.json` for a project:
 # At the start of each task, check available documentation
 help({})
 
-# Load relevant docs for the current task
-help({ id: "coding-style" })  # Before writing code
-help({ id: "git-workflow" })  # Before committing
+# Navigate to relevant category
+help({ id: "coding" })
+
+# Load specific doc for the task
+help({ id: "coding__style" })  # Before writing code
+help({ id: "git__workflow" })  # Before committing
 ```
 
 This ensures the AI always has fresh context for the specific task at hand, rather than relying on potentially "forgotten" information from earlier in the conversation.
+
+## Performance
+
+- **Caching**: Document list is cached for 1 minute to avoid repeated filesystem scans
+- **Cache invalidation**: Cache is automatically cleared when documents are added or updated
+- **Lazy loading**: Documents are only read when specifically requested
 
 ## License
 
