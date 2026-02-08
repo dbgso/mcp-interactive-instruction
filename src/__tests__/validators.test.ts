@@ -4,6 +4,7 @@ import {
   HasDescriptionValidator,
   NotExistsValidator,
   ExistsValidator,
+  ValidIdValidator,
   type Validator,
 } from "../services/validators.js";
 
@@ -49,6 +50,28 @@ describe("validators", () => {
       expect(result.success).toBe(expectedSuccess);
       if (!expectedSuccess) {
         expect(result.error).toContain("not found");
+      }
+    });
+  });
+
+  describe("ValidIdValidator", () => {
+    it.each<{ name: string; id: string; expectedSuccess: boolean; errorContains?: string }>([
+      { name: "success with valid simple id", id: "my-doc", expectedSuccess: true },
+      { name: "success with valid id using underscores", id: "my_doc", expectedSuccess: true },
+      { name: "success with valid hierarchical id", id: "coding__testing", expectedSuccess: true },
+      { name: "success with deep hierarchy", id: "category__sub__item", expectedSuccess: true },
+      { name: "error with empty string", id: "", expectedSuccess: false, errorContains: "cannot be empty" },
+      { name: "error with whitespace only", id: "   ", expectedSuccess: false, errorContains: "cannot be empty" },
+      { name: "error with spaces in id", id: "my doc", expectedSuccess: false, errorContains: "Invalid document ID" },
+      { name: "error with special characters", id: "my@doc!", expectedSuccess: false, errorContains: "Invalid document ID" },
+      { name: "error with single underscore separator", id: "coding_testing", expectedSuccess: true },
+    ])("$name", ({ id, expectedSuccess, errorContains }) => {
+      const validator = new ValidIdValidator({ id });
+      const result = validator.validate();
+
+      expect(result.success).toBe(expectedSuccess);
+      if (!expectedSuccess && errorContains) {
+        expect(result.error).toContain(errorContains);
       }
     });
   });

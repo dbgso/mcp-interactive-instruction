@@ -72,3 +72,32 @@ export class ExistsValidator implements Validator {
     return { success: true };
   }
 }
+
+export class ValidIdValidator implements Validator {
+  private readonly id: string;
+
+  constructor(params: { id: string }) {
+    this.id = params.id;
+  }
+
+  validate(): AddResult {
+    // ID must be non-empty and contain only valid characters
+    if (!this.id || this.id.trim() === "") {
+      return {
+        success: false,
+        error: "Document ID cannot be empty.",
+      };
+    }
+
+    // ID should only contain alphanumeric, hyphens, underscores, and double underscores for hierarchy
+    const validIdPattern = /^[a-zA-Z0-9_-]+(__[a-zA-Z0-9_-]+)*$/;
+    if (!validIdPattern.test(this.id)) {
+      return {
+        success: false,
+        error: `Invalid document ID "${this.id}". Use only letters, numbers, hyphens, and underscores. Use '__' for hierarchy.`,
+      };
+    }
+
+    return { success: true };
+  }
+}
