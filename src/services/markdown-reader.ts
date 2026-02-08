@@ -1,10 +1,17 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { MarkdownSummary } from "../types/index.js";
+import {
+  runValidators,
+  HasDescriptionValidator,
+  NotExistsValidator,
+  ExistsValidator,
+} from "./validators.js";
 
 export interface AddResult {
   success: boolean;
   error?: string;
+  path?: string;
 }
 
 export interface CategoryInfo {
@@ -127,10 +134,11 @@ export class MarkdownReader {
    * @param parentId - Filter by parent category (e.g., "git" shows git__* docs)
    * @param recursive - If true, show all nested docs; if false, show immediate children only
    */
-  async listDocuments(
-    parentId?: string,
-    recursive = false
-  ): Promise<{ documents: MarkdownSummary[]; categories: CategoryInfo[] }> {
+  async listDocuments(params?: {
+    parentId?: string;
+    recursive?: boolean;
+  }): Promise<{ documents: MarkdownSummary[]; categories: CategoryInfo[] }> {
+    const { parentId, recursive = false } = params ?? {};
     const cache = await this.getCache();
 
     if (!parentId) {
@@ -184,10 +192,11 @@ export class MarkdownReader {
     return cache.documents.some((d) => d.id.startsWith(prefix));
   }
 
-  formatDocumentList(
-    documents: MarkdownSummary[],
-    categories: CategoryInfo[]
-  ): string {
+  formatDocumentList(params: {
+    documents: MarkdownSummary[];
+    categories: CategoryInfo[];
+  }): string {
+    const { documents, categories } = params;
     if (documents.length === 0 && categories.length === 0) {
       return "No markdown documents found.";
     }
@@ -238,13 +247,23 @@ export class MarkdownReader {
     }
   }
 
-  async addDocument(id: string, content: string): Promise<AddResult> {
+  async addDocument(params: {
+    id: string;
+    content: string;
+  }): Promise<AddResult> {
+    const { id, content } = params;
+
+    const description = this.parseDescription(content);
     const exists = await this.documentExists(id);
-    if (exists) {
-      return {
-        success: false,
-        error: `Document "${id}" already exists. Use 'update' to modify it.`,
-      };
+
+    const validation = runValidators({
+      validators: [
+        new HasDescriptionValidator({ description }),
+        new NotExistsValidator({ id, exists }),
+      ],
+    });
+    if (!validation.success) {
+      return validation;
     }
 
     try {
@@ -253,7 +272,7 @@ export class MarkdownReader {
       await fs.mkdir(dir, { recursive: true });
       await fs.writeFile(filePath, content, "utf-8");
       this.invalidateCache();
-      return { success: true };
+      return { success: true, path: filePath };
     } catch (error) {
       return {
         success: false,
@@ -262,15 +281,36 @@ export class MarkdownReader {
     }
   }
 
-  async updateDocument(id: string, content: string): Promise<boolean> {
+  async updateDocument(params: {
+    id: string;
+    content: string;
+  }): Promise<AddResult> {
+    const { id, content } = params;
+
+    const description = this.parseDescription(content);
     const exists = await this.documentExists(id);
-    if (!exists) {
-      return false;
+
+    const validation = runValidators({
+      validators: [
+        new HasDescriptionValidator({ description }),
+        new ExistsValidator({ id, exists }),
+      ],
+    });
+    if (!validation.success) {
+      return validation;
     }
-    const filePath = this.idToPath(id);
-    await fs.writeFile(filePath, content, "utf-8");
-    this.invalidateCache();
-    return true;
+
+    try {
+      const filePath = this.idToPath(id);
+      await fs.writeFile(filePath, content, "utf-8");
+      this.invalidateCache();
+      return { success: true, path: filePath };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Failed to update document: ${(error as Error).message}`,
+      };
+    }
   }
 
   async deleteDocument(id: string): Promise<AddResult> {
@@ -300,7 +340,12 @@ export class MarkdownReader {
     }
   }
 
-  async renameDocument(oldId: string, newId: string): Promise<AddResult> {
+  async renameDocument(params: {
+    oldId: string;
+    newId: string;
+    overwrite?: boolean;
+  }): Promise<AddResult> {
+    const { oldId, newId, overwrite = false } = params;
     const oldExists = await this.documentExists(oldId);
     if (!oldExists) {
       return {
@@ -310,7 +355,7 @@ export class MarkdownReader {
     }
 
     const newExists = await this.documentExists(newId);
-    if (newExists) {
+    if (newExists && !overwrite) {
       return {
         success: false,
         error: `Document "${newId}" already exists.`,
@@ -320,6 +365,11 @@ export class MarkdownReader {
     try {
       const oldPath = this.idToPath(oldId);
       const newPath = this.idToPath(newId);
+
+      // Delete existing file if overwriting
+      if (newExists && overwrite) {
+        await fs.unlink(newPath);
+      }
 
       // Create new directory if needed
       const newDir = path.dirname(newPath);

@@ -1,8 +1,15 @@
 {
   "mcpServers": {
-    "docs": {
+    "mcp-interactive-instruction": {
       "command": "npx",
-      "args": ["tsx", "./src/index.ts", "./docs"]
+      "args": [
+        "tsx",
+        "./src/index.ts",
+        "./docs",
+        "--remind-mcp",
+        "--remind-organize",
+        "--topic-for-every-task", "topic-for-every-task"
+      ]
     }
   }
 }

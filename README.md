@@ -1,6 +1,6 @@
 # mcp-interactive-instruction
 
-MCP server for interactive instruction documents. Enables AI agents to list, view, add, and update markdown files on demand instead of loading all documentation at once.
+MCP server for interactive instruction documents. Enables AI agents to autonomously manage documentation - creating drafts, organizing knowledge, and promoting to confirmed docs with user approval.
 
 ## Why
 
@@ -9,22 +9,103 @@ Traditional approach of loading large .md files (like `agents.md`, `skills.md`) 
 - **Context bloat**: All documentation occupies context space even when not needed
 - **Forgetting**: As conversation grows, AI gradually "forgets" earlier loaded content
 - **All or nothing**: No way to selectively refresh specific information
+- **Static knowledge**: AI can't record new learnings from the conversation
 
 This tool solves these problems by:
 
 - **Topic-based splitting**: Organize documentation into separate files by topic
 - **On-demand retrieval**: Fetch only what's needed, when it's needed
 - **Interactive recall**: AI can "remember" information by querying the MCP tool
-- **Hierarchical organization**: Support for nested directories with progressive navigation
+- **Autonomous learning**: AI can record new knowledge as drafts without permission
+- **Human oversight**: Drafts require approval before becoming confirmed docs
 
-## Features
+## Tools
 
-- **help**: List documents/categories or get content by ID (supports hierarchical navigation)
-- **add**: Create new markdown documents (supports nested paths)
-- **update**: Update existing markdown documents
-- **delete**: Remove documents (cleans up empty directories)
-- **rename**: Rename or move documents to different paths
-- **Caching**: 1-minute cache for performance, auto-invalidated on write operations
+| Tool | Purpose | Permission |
+|------|---------|------------|
+| `description` | Show usage instructions for all tools | - |
+| `help` | Browse/read confirmed documentation | - |
+| `draft` | CRUD for temporary docs (`_mcp_drafts/`) | AI can use freely |
+| `apply` | Promote drafts to confirmed docs | Requires user approval |
+
+### description
+
+Show detailed usage instructions for all MCP tools.
+
+```
+description()
+→ Full usage guide with examples
+```
+
+### help
+
+Browse and read confirmed documentation. Drafts (`_mcp_drafts/`) are automatically filtered out.
+
+```
+# List root level (shows categories and documents)
+help()
+
+# Navigate into a category
+help({ id: "git" })
+
+# Get specific document content
+help({ id: "git__workflow" })
+
+# List ALL documents at once (flat view)
+help({ recursive: true })
+```
+
+### draft
+
+Manage temporary documentation drafts. **AI should use this freely** to record any new information learned from user instructions.
+
+```
+# Show draft tool help
+draft()
+
+# List all drafts
+draft({ action: "list" })
+
+# Read a draft
+draft({ action: "read", id: "coding__style" })
+
+# Create new draft (NEW topic = NEW file!)
+draft({ action: "add", id: "coding__testing", content: "# Testing Rules\n\n..." })
+
+# Update existing draft (same topic only)
+draft({ action: "update", id: "coding__testing", content: "# Testing Rules\n\nUpdated..." })
+
+# Delete a draft
+draft({ action: "delete", id: "old-draft" })
+
+# Rename/move a draft (safe reorganization)
+draft({ action: "rename", id: "old-name", newId: "category__new-name" })
+```
+
+**Important Rules for AI:**
+- **New information = New file**: Different topic = always use `add`, not `update`
+- **One topic per file**: Keep each draft focused on a single topic
+- **Use hierarchy**: Group related topics with prefixes (e.g., `coding__testing`)
+
+### apply
+
+Promote drafts to confirmed documentation. This requires user approval.
+
+```
+# Show apply tool help
+apply()
+
+# List drafts ready to promote
+apply({ action: "list" })
+
+# Promote a draft (same name)
+apply({ action: "promote", draftId: "coding-style" })
+→ Moves _mcp_drafts/coding-style.md to coding-style.md
+
+# Promote with different name/location
+apply({ action: "promote", draftId: "temp-guide", targetId: "guides__setup" })
+→ Moves _mcp_drafts/temp-guide.md to guides/setup.md
+```
 
 ## Installation
 
@@ -38,11 +119,11 @@ Or use directly with npx:
 npx mcp-interactive-instruction /path/to/docs
 ```
 
-## Usage
+## Configuration
 
-### Claude Code Configuration
+### Claude Code
 
-Add to `~/.claude/settings.json`:
+Add to `~/.claude/settings.json` for global configuration:
 
 ```json
 {
@@ -55,7 +136,7 @@ Add to `~/.claude/settings.json`:
 }
 ```
 
-Or for a specific project, create `.mcp.json` in the project root:
+Or create `.mcp.json` in your project root:
 
 ```json
 {
@@ -68,117 +149,137 @@ Or for a specific project, create `.mcp.json` in the project root:
 }
 ```
 
-### Tools
+### Reminder Flags (Optional)
 
-#### help
+Optionally add flags to help AI remember to use the MCP tools:
 
-List documents/categories or get content by ID.
-
-```
-# List root level (shows categories and root documents)
-help({})
-→ Available documents:
-
-  **Categories:**
-  - **git/** (3 docs)
-  - **api/** (2 docs)
-
-  **Documents:**
-  - **coding-style**: Code formatting conventions...
-
-# Navigate into a category
-help({ id: "git" })
-→ Available documents:
-  - **git__workflow**: Git workflow process...
-  - **git__commands**: Common git commands...
-  - **git__branching**: Branch naming conventions...
-
-# Get specific document content
-help({ id: "git__workflow" })
-→ (full content of git/workflow.md)
-
-# List ALL documents at once (flat view)
-help({ recursive: true })
-→ All documents listed regardless of hierarchy
+```json
+{
+  "mcpServers": {
+    "docs": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-interactive-instruction",
+        "./docs",
+        "--remind-mcp",
+        "--remind-organize",
+        "--reminder", "Always check tests before committing"
+      ]
+    }
+  }
+}
 ```
 
-#### add
+| Flag | Effect |
+|------|--------|
+| `--remind-mcp` | Reminds AI to check docs before starting tasks |
+| `--remind-organize` | Reminds AI to keep docs organized (1 topic per file) |
+| `--reminder <message>` | Add custom reminder message (can be used multiple times) |
+| `--topic-for-every-task <id>` | Specify a document AI must re-read before every task |
+| `--info-expires <seconds>` | How long MCP info stays valid (default: 60). Works with `--topic-for-every-task` |
 
-Create a new markdown document. Use `__` for nested paths.
+### Topic for Every Task
 
-```
-# Create at root level
-add({ id: "new-guide", content: "# New Guide\n\nContent here..." })
-→ Document "new-guide" created successfully.
+Force AI to re-read a specific document before every task. This is useful for critical rules that should never be forgotten:
 
-# Create in subdirectory (creates git/advanced.md)
-add({ id: "git__advanced", content: "# Advanced Git\n\nAdvanced topics..." })
-→ Document "git__advanced" created successfully.
-```
-
-#### update
-
-Update an existing document.
-
-```
-update({ id: "git__workflow", content: "# Git Workflow (Updated)\n\nNew content..." })
-→ Document "git__workflow" updated successfully.
-```
-
-#### delete
-
-Delete a document. Empty parent directories are automatically cleaned up.
-
-```
-delete({ id: "git__old-doc" })
-→ Document "git__old-doc" deleted successfully.
+```json
+{
+  "args": [
+    "-y",
+    "mcp-interactive-instruction",
+    "./docs",
+    "--topic-for-every-task", "topic-for-every-task",
+    "--info-expires", "60"
+  ]
+}
 ```
 
-#### rename
+The `--info-expires` flag tells AI that MCP information expires after N seconds and needs to be refreshed. This triggers re-reading the specified document before each task.
 
-Rename or move a document to a different path.
+**Best Practice:** Keep the topic-for-every-task document as a **redirect hub** rather than a detailed rule list:
 
+```markdown
+# Topic for Every Task
+
+Read these documents before starting any task:
+
+- `why-this-project` - Project concept and goals
+- `coding-rules` - Essential coding conventions
+
+## Quick Reminders
+- Use params object style for function arguments
+- All documentation must be in English
 ```
-# Rename within same directory
-rename({ oldId: "guide", newId: "tutorial" })
-→ Document renamed from "guide" to "tutorial" successfully.
 
-# Move to different category
-rename({ oldId: "misc__doc", newId: "git__doc" })
-→ Document renamed from "misc__doc" to "git__doc" successfully.
+This approach keeps the document lightweight while ensuring AI always knows which topics to check.
+
+**Tuning `--info-expires`:** Shorter expiry times cause more frequent re-reads, ensuring rules are never forgotten. However, this consumes more context space. Adjust based on your needs:
+
+| Value | Effect |
+|-------|--------|
+| 30-60s | Frequent re-reads, higher context usage |
+| 120-300s | Balanced approach |
+| 600s+ | Rare re-reads, lower context usage |
+
+**Note:** This feature influences AI behavior but does not guarantee 100% compliance. AI may still make autonomous decisions about when to re-read documents based on context and task requirements.
+
+Example with multiple custom reminders:
+
+```json
+{
+  "args": [
+    "-y",
+    "mcp-interactive-instruction",
+    "./docs",
+    "--reminder", "Run tests after code changes",
+    "--reminder", "Use Japanese for commit messages"
+  ]
+}
 ```
 
 ## Directory Structure
 
-Documents can be organized in nested directories:
-
 ```
 docs/
-├── coding-style.md          → id: "coding-style"
+├── coding-style.md              → id: "coding-style" (confirmed)
 ├── git/
-│   ├── workflow.md          → id: "git__workflow"
-│   ├── commands.md          → id: "git__commands"
-│   └── advanced/
-│       └── rebase.md        → id: "git__advanced__rebase"
-└── api/
-    ├── overview.md          → id: "api__overview"
-    └── endpoints.md         → id: "api__endpoints"
+│   ├── workflow.md              → id: "git__workflow" (confirmed)
+│   └── commands.md              → id: "git__commands" (confirmed)
+└── _mcp_drafts/                 ← AI's temporary drafts
+    ├── new-feature.md           → draft id: "new-feature"
+    └── coding/
+        └── testing.md           → draft id: "coding__testing"
 ```
 
-**ID Format**: Use `__` (double underscore) as the path separator.
+- **Confirmed docs**: Root level and subdirectories (excluding `_mcp_drafts/`)
+- **Drafts**: Stored in `_mcp_drafts/` directory
+- **ID Format**: Use `__` (double underscore) as the path separator
 
-### Progressive Navigation vs Flat View
+## Workflow
 
-| Mode | Command | Use Case |
-|------|---------|----------|
-| Progressive | `help({})` then `help({ id: "git" })` | Browse categories step by step |
-| Flat | `help({ recursive: true })` | See everything at once |
+### For AI
 
-Progressive navigation is useful when you have many documents and want to explore by category. Flat view is useful when you want to quickly find a specific document.
+1. **Check docs before tasks**: Use `help()` to see available documentation
+2. **Record new learnings**: When user teaches something new, immediately create a draft
+3. **One topic per file**: Keep drafts focused and granular
+4. **Ask before promoting**: Get user approval before using `apply`
+
+```
+# User says: "Always use params object style for function arguments"
+draft({ action: "add", id: "coding__params-style", content: "# Params Style\n\n..." })
+
+# Later, ask user: "Should I promote this to confirmed docs?"
+apply({ action: "promote", draftId: "coding__params-style" })
+```
+
+### For Users
+
+1. **Review drafts**: Check `draft({ action: "list" })` to see what AI has recorded
+2. **Approve or reject**: Decide which drafts should become permanent documentation
+3. **Organize**: Use `apply` with `targetId` to place docs in the right location
 
 ## Document Format
-
-Documents should have this structure for best results:
 
 ```markdown
 # Title
@@ -190,63 +291,27 @@ Summary paragraph that appears in the document list.
 Content...
 ```
 
-The first paragraph after the `# Title` heading is used as the summary in the document list. **Make this summary descriptive enough for AI to identify when this document is relevant.**
+The first paragraph after the `# Title` heading is used as the summary in listings. **Make summaries descriptive** so AI can identify when each document is relevant.
 
 ### Granularity Guidelines
 
-Keep each document focused on **ONE topic** for maximum reusability:
+Keep each document focused on **ONE topic**:
 
 | Instead of | Split into |
 |------------|------------|
-| `git.md` (everything about git) | `git/workflow.md` + `git/commands.md` |
-| `api.md` (all API docs) | `api/overview.md` + `api/endpoints.md` |
-| `coding.md` (all conventions) | `naming.md` + `error-handling.md` + `testing.md` |
+| `git.md` (everything) | `git__workflow.md` + `git__commands.md` |
+| `coding.md` (all rules) | `coding__style.md` + `coding__testing.md` |
 
 **Why this matters:**
-- AI can load only what's needed (e.g., forgot a command? load just `git__commands`)
-- Summaries become more specific and easier to match
-- Updates to one aspect don't require reloading unrelated content
-
-## Example: Organizing AI Instructions
-
-```
-docs/
-├── overview.md         # High-level project context
-├── coding/
-│   ├── style.md        # Code formatting conventions
-│   ├── naming.md       # Naming conventions
-│   └── testing.md      # Testing guidelines
-├── git/
-│   ├── workflow.md     # Git workflow process
-│   └── commands.md     # Specific command reference
-└── api/
-    ├── overview.md     # API architecture
-    └── endpoints.md    # Endpoint reference
-```
-
-### Recommended Workflow
-
-**Important**: Always check the MCP tool before starting any task.
-
-```
-# At the start of each task, check available documentation
-help({})
-
-# Navigate to relevant category
-help({ id: "coding" })
-
-# Load specific doc for the task
-help({ id: "coding__style" })  # Before writing code
-help({ id: "git__workflow" })  # Before committing
-```
-
-This ensures the AI always has fresh context for the specific task at hand, rather than relying on potentially "forgotten" information from earlier in the conversation.
+- AI loads only what's needed
+- Easier to find and update specific information
+- Better summaries for matching
 
 ## Performance
 
-- **Caching**: Document list is cached for 1 minute to avoid repeated filesystem scans
-- **Cache invalidation**: Cache is automatically cleared when documents are added or updated
-- **Lazy loading**: Documents are only read when specifically requested
+- **Caching**: Document list cached for 1 minute
+- **Cache invalidation**: Automatic on write operations
+- **Lazy loading**: Documents read only when requested
 
 ## License
 
