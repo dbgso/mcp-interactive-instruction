@@ -1,5 +1,7 @@
 # Architecture
 
+Guidelines for service layer architecture and code organization.
+
 ## Service Layer
 
 Aggregate business logic in service classes.

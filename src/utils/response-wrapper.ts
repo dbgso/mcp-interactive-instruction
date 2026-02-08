@@ -10,13 +10,17 @@ const MCP_REMINDER = `[Reminder] Always refer to this MCP to check for relevant 
 
 const ORGANIZE_REMINDER = `[Reminder] Review document organization: Use directory hierarchy for related topics. Each file should cover ONE topic only - don't write detailed blocks, instead link to separate topic documents.`;
 
-export function wrapResponse(params: {
-  result: ToolResult;
+export function buildReminderBlock(params: {
   config: ReminderConfig;
-}): ToolResult {
-  const { result, config } = params;
-  if (!config.remindMcp && !config.remindOrganize) {
-    return result;
+}): string | null {
+  const { config } = params;
+  const hasReminders =
+    config.remindMcp ||
+    config.remindOrganize ||
+    config.customReminders.length > 0;
+
+  if (!hasReminders) {
+    return null;
   }
 
   const reminders: string[] = [];
@@ -26,8 +30,23 @@ export function wrapResponse(params: {
   if (config.remindOrganize) {
     reminders.push(ORGANIZE_REMINDER);
   }
+  for (const customReminder of config.customReminders) {
+    reminders.push(`[Reminder] ${customReminder}`);
+  }
 
-  const reminderBlock = `\n\n---\n\n${reminders.join("\n\n")}`;
+  return `\n\n---\n\n${reminders.join("\n\n")}`;
+}
+
+export function wrapResponse(params: {
+  result: ToolResult;
+  config: ReminderConfig;
+}): ToolResult {
+  const { result, config } = params;
+  const reminderBlock = buildReminderBlock({ config });
+
+  if (!reminderBlock) {
+    return result;
+  }
 
   return {
     ...result,

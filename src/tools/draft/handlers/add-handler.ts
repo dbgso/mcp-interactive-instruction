@@ -21,16 +21,16 @@ export class AddHandler implements DraftActionHandler {
       };
     }
     const draftId = DRAFT_PREFIX + id;
-    const addResult = await reader.addDocument({ id: draftId, content });
-    if (!addResult.success) {
+    const result = await reader.addDocument({ id: draftId, content });
+    if (!result.success) {
       return {
-        content: [{ type: "text" as const, text: `Error: ${addResult.error}` }],
+        content: [{ type: "text" as const, text: `Error: ${result.error}` }],
         isError: true,
       };
     }
     return {
       content: [
-        { type: "text" as const, text: `Draft "${id}" created successfully.` },
+        { type: "text" as const, text: `Draft "${id}" created successfully.\nPath: ${result.path}` },
       ],
     };
   }

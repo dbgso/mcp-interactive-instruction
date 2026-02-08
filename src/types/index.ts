@@ -8,6 +8,7 @@ export interface MarkdownSummary {
 export interface ReminderConfig {
   remindMcp: boolean;
   remindOrganize: boolean;
+  customReminders: string[];
 }
 
 export type ToolResult = {

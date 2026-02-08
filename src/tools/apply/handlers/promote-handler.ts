@@ -37,6 +37,7 @@ export class PromoteHandler implements ApplyActionHandler {
     const renameResult = await reader.renameDocument({
       oldId: sourceDraftId,
       newId: finalTargetId,
+      overwrite: true,
     });
     if (!renameResult.success) {
       return {

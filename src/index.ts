@@ -11,18 +11,35 @@ function parseArgs(params: { args: string[] }): {
   const remindMcp = args.includes("--remind-mcp");
   const remindOrganize = args.includes("--remind-organize");
 
-  const positional = args.filter((arg) => !arg.startsWith("--"));
+  // Parse --reminder "message" flags (can appear multiple times)
+  const customReminders: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--reminder" && i + 1 < args.length) {
+      customReminders.push(args[i + 1]);
+      i++; // Skip the next arg (the message)
+    }
+  }
+
+  // Filter out flags and their values to get positional args
+  const positional: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--reminder") {
+      i++; // Skip the message value
+    } else if (!args[i].startsWith("--")) {
+      positional.push(args[i]);
+    }
+  }
 
   if (positional.length === 0) {
     console.error(
-      "Usage: mcp-interactive-instruction <markdown-directory> [--remind-mcp] [--remind-organize]"
+      "Usage: mcp-interactive-instruction <markdown-directory> [--remind-mcp] [--remind-organize] [--reminder <message>]..."
     );
     process.exit(1);
   }
 
   return {
     markdownDir: positional[0],
-    config: { remindMcp, remindOrganize },
+    config: { remindMcp, remindOrganize, customReminders },
   };
 }
 

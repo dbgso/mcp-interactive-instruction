@@ -9,6 +9,7 @@ import type { ReminderConfig } from "./types/index.js";
 const DEFAULT_CONFIG: ReminderConfig = {
   remindMcp: false,
   remindOrganize: false,
+  customReminders: [],
 };
 
 export function createServer(params: {

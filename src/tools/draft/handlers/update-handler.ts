@@ -21,13 +21,13 @@ export class UpdateHandler implements DraftActionHandler {
       };
     }
     const draftId = DRAFT_PREFIX + id;
-    const updated = await reader.updateDocument({ id: draftId, content });
-    if (!updated) {
+    const result = await reader.updateDocument({ id: draftId, content });
+    if (!result.success) {
       return {
         content: [
           {
             type: "text" as const,
-            text: `Error: Draft "${id}" not found. Use add action to create it.`,
+            text: `Error: ${result.error}`,
           },
         ],
         isError: true,
@@ -35,7 +35,7 @@ export class UpdateHandler implements DraftActionHandler {
     }
     return {
       content: [
-        { type: "text" as const, text: `Draft "${id}" updated successfully.` },
+        { type: "text" as const, text: `Draft "${id}" updated successfully.\nPath: ${result.path}` },
       ],
     };
   }

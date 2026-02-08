@@ -113,11 +113,19 @@ describe("MarkdownReader", () => {
     it("should return error when adding existing document", async () => {
       const reader = new MarkdownReader(tempDir);
 
-      await reader.addDocument({ id: "existing", content: "# First" });
-      const result = await reader.addDocument({ id: "existing", content: "# Second" });
+      await reader.addDocument({ id: "existing", content: "# First\n\nFirst description." });
+      const result = await reader.addDocument({ id: "existing", content: "# Second\n\nSecond description." });
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("already exists");
+    });
+
+    it("should reject add without description", async () => {
+      const reader = new MarkdownReader(tempDir);
+      const result = await reader.addDocument({ id: "no-desc", content: "# Title Only" });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("must have a description");
     });
 
     it.each([
@@ -137,21 +145,38 @@ describe("MarkdownReader", () => {
       const reader = new MarkdownReader(tempDir);
 
       await reader.addDocument({ id: "to-update", content: "# Original\n\nOriginal content." });
-      const updated = await reader.updateDocument({
+      const result = await reader.updateDocument({
         id: "to-update",
         content: "# Updated\n\nUpdated content.",
       });
 
-      expect(updated).toBe(true);
+      expect(result.success).toBe(true);
       const content = await reader.getDocumentContent("to-update");
       expect(content).toContain("Updated content.");
     });
 
-    it("should return false when updating non-existent document", async () => {
+    it("should return error when updating non-existent document", async () => {
       const reader = new MarkdownReader(tempDir);
-      const updated = await reader.updateDocument({ id: "missing", content: "# Content" });
+      const result = await reader.updateDocument({
+        id: "missing",
+        content: "# Content\n\nSome description.",
+      });
 
-      expect(updated).toBe(false);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not found");
+    });
+
+    it("should reject update without description", async () => {
+      const reader = new MarkdownReader(tempDir);
+
+      await reader.addDocument({ id: "has-desc", content: "# Title\n\nHas description." });
+      const result = await reader.updateDocument({
+        id: "has-desc",
+        content: "# Title Only",
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("must have a description");
     });
   });
 
@@ -361,6 +386,26 @@ describe("MarkdownReader", () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain("already exists");
     });
+
+    it("should overwrite existing document when overwrite is true", async () => {
+      const reader = new MarkdownReader(tempDir);
+
+      await reader.addDocument({ id: "source", content: "# Source\n\nSource content." });
+      await reader.addDocument({ id: "target", content: "# Target\n\nTarget content." });
+
+      const result = await reader.renameDocument({
+        oldId: "source",
+        newId: "target",
+        overwrite: true,
+      });
+
+      expect(result.success).toBe(true);
+      expect(await reader.documentExists("source")).toBe(false);
+      expect(await reader.documentExists("target")).toBe(true);
+
+      const content = await reader.getDocumentContent("target");
+      expect(content).toContain("Source content.");
+    });
   });
 
   describe("parseDescription", () => {
@@ -385,8 +430,8 @@ describe("MarkdownReader", () => {
       },
       {
         name: "handles empty content after title",
-        content: "# Empty",
-        check: (desc: string) => desc === "(No description)",
+        content: "# Empty\n\nHas description now.",
+        check: (desc: string) => desc === "Has description now.",
       },
     ])("$name", async ({ content, check }) => {
       const reader = new MarkdownReader(tempDir);
