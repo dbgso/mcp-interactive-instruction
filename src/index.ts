@@ -1,17 +1,36 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createServer } from "./server.js";
+import type { ReminderConfig } from "./types/index.js";
 
-async function main() {
-  const args = process.argv.slice(2);
+function parseArgs(params: { args: string[] }): {
+  markdownDir: string;
+  config: ReminderConfig;
+} {
+  const { args } = params;
+  const remindMcp = args.includes("--remind-mcp");
+  const remindOrganize = args.includes("--remind-organize");
 
-  if (args.length === 0) {
-    console.error("Usage: mcp-interfactive-md <markdown-directory>");
+  const positional = args.filter((arg) => !arg.startsWith("--"));
+
+  if (positional.length === 0) {
+    console.error(
+      "Usage: mcp-interactive-instruction <markdown-directory> [--remind-mcp] [--remind-organize]"
+    );
     process.exit(1);
   }
 
-  const markdownDir = args[0];
-  const server = createServer(markdownDir);
+  return {
+    markdownDir: positional[0],
+    config: { remindMcp, remindOrganize },
+  };
+}
+
+async function main() {
+  const args = process.argv.slice(2);
+  const { markdownDir, config } = parseArgs({ args });
+
+  const server = createServer({ markdownDir, config });
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

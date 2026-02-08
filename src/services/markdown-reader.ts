@@ -127,10 +127,11 @@ export class MarkdownReader {
    * @param parentId - Filter by parent category (e.g., "git" shows git__* docs)
    * @param recursive - If true, show all nested docs; if false, show immediate children only
    */
-  async listDocuments(
-    parentId?: string,
-    recursive = false
-  ): Promise<{ documents: MarkdownSummary[]; categories: CategoryInfo[] }> {
+  async listDocuments(params?: {
+    parentId?: string;
+    recursive?: boolean;
+  }): Promise<{ documents: MarkdownSummary[]; categories: CategoryInfo[] }> {
+    const { parentId, recursive = false } = params ?? {};
     const cache = await this.getCache();
 
     if (!parentId) {
@@ -184,10 +185,11 @@ export class MarkdownReader {
     return cache.documents.some((d) => d.id.startsWith(prefix));
   }
 
-  formatDocumentList(
-    documents: MarkdownSummary[],
-    categories: CategoryInfo[]
-  ): string {
+  formatDocumentList(params: {
+    documents: MarkdownSummary[];
+    categories: CategoryInfo[];
+  }): string {
+    const { documents, categories } = params;
     if (documents.length === 0 && categories.length === 0) {
       return "No markdown documents found.";
     }
@@ -238,7 +240,11 @@ export class MarkdownReader {
     }
   }
 
-  async addDocument(id: string, content: string): Promise<AddResult> {
+  async addDocument(params: {
+    id: string;
+    content: string;
+  }): Promise<AddResult> {
+    const { id, content } = params;
     const exists = await this.documentExists(id);
     if (exists) {
       return {
@@ -262,7 +268,11 @@ export class MarkdownReader {
     }
   }
 
-  async updateDocument(id: string, content: string): Promise<boolean> {
+  async updateDocument(params: {
+    id: string;
+    content: string;
+  }): Promise<boolean> {
+    const { id, content } = params;
     const exists = await this.documentExists(id);
     if (!exists) {
       return false;
@@ -300,7 +310,11 @@ export class MarkdownReader {
     }
   }
 
-  async renameDocument(oldId: string, newId: string): Promise<AddResult> {
+  async renameDocument(params: {
+    oldId: string;
+    newId: string;
+  }): Promise<AddResult> {
+    const { oldId, newId } = params;
     const oldExists = await this.documentExists(oldId);
     if (!oldExists) {
       return {

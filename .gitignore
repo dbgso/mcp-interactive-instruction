@@ -4,3 +4,4 @@ dist/
 .DS_Store
 test-docs/
 src/__tests__/coverage/
+docs/_mcp_drafts
