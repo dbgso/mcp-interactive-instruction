@@ -52,7 +52,7 @@ export class PromoteHandler implements ApplyActionHandler {
       content: [
         {
           type: "text" as const,
-          text: `Draft "${draftId}" promoted to "${finalTargetId}" successfully.`,
+          text: `Draft "${draftId}" promoted to "${finalTargetId}" successfully.\n\n[AI Action Required] Explain the promoted content to the user and confirm the rule is now active.`,
         },
       ],
     };

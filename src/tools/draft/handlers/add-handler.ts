@@ -30,7 +30,10 @@ export class AddHandler implements DraftActionHandler {
     }
     return {
       content: [
-        { type: "text" as const, text: `Draft "${id}" created successfully.\nPath: ${result.path}` },
+        {
+          type: "text" as const,
+          text: `Draft "${id}" created successfully.\nPath: ${result.path}\n\n[AI Action Required] Explain the created content to the user and confirm it matches their intent.`,
+        },
       ],
     };
   }
