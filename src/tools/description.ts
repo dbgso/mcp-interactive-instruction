@@ -2,7 +2,11 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { wrapResponse } from "../utils/response-wrapper.js";
 import type { ReminderConfig } from "../types/index.js";
 
-const DESCRIPTION = `# MCP Interactive Instruction
+function buildDescription(params: { infoValidSeconds: number }): string {
+  const { infoValidSeconds } = params;
+  return `# MCP Interactive Instruction
+
+**IMPORTANT: Information from this MCP is only valid for ${infoValidSeconds} seconds. Documents may be updated at any time. Always re-read before each task to get the latest rules.**
 
 This MCP provides tools for managing documentation that AI can autonomously maintain.
 
@@ -33,14 +37,17 @@ Promote drafts to confirmed documentation. **Requires user approval.**
 
 1. **Record everything new**: When you learn something from user instructions, immediately create a draft
 2. **One topic per file**: Keep each document focused on a single topic
-3. **Update freely**: Drafts are temporary - modify them without hesitation
-4. **Ask before applying**: Always get user approval before promoting drafts to confirmed docs`;
+3. **Name by AI's search**: Use names that AI would search for (e.g., \`why-this-project\`, \`setup\`, \`getting-started\`)
+4. **Update freely**: Drafts are temporary - modify them without hesitation
+5. **Ask before applying**: Always get user approval before promoting drafts to confirmed docs`;
+}
 
 export function registerDescriptionTool(params: {
   server: McpServer;
   config: ReminderConfig;
 }): void {
   const { server, config } = params;
+  const description = buildDescription({ infoValidSeconds: config.infoValidSeconds });
 
   server.registerTool(
     "description",
@@ -52,7 +59,7 @@ export function registerDescriptionTool(params: {
     async () => {
       return wrapResponse({
         result: {
-          content: [{ type: "text" as const, text: DESCRIPTION }],
+          content: [{ type: "text" as const, text: description }],
         },
         config,
       });

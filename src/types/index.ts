@@ -9,6 +9,8 @@ export interface ReminderConfig {
   remindMcp: boolean;
   remindOrganize: boolean;
   customReminders: string[];
+  topicForEveryTask: string | null;
+  infoValidSeconds: number;
 }
 
 export type ToolResult = {

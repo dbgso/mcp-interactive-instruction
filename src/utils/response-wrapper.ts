@@ -10,6 +10,11 @@ const MCP_REMINDER = `[Reminder] Always refer to this MCP to check for relevant 
 
 const ORGANIZE_REMINDER = `[Reminder] Review document organization: Use directory hierarchy for related topics. Each file should cover ONE topic only - don't write detailed blocks, instead link to separate topic documents.`;
 
+function buildEveryTaskReminder(params: { docId: string; seconds: number }): string {
+  const { docId, seconds } = params;
+  return `[Reminder] Information from this MCP is only valid for ${seconds} seconds. After that, it may have been updated. Re-read '${docId}' using help(id: "${docId}") to get the latest rules.`;
+}
+
 export function buildReminderBlock(params: {
   config: ReminderConfig;
 }): string | null {
@@ -17,13 +22,17 @@ export function buildReminderBlock(params: {
   const hasReminders =
     config.remindMcp ||
     config.remindOrganize ||
-    config.customReminders.length > 0;
+    config.customReminders.length > 0 ||
+    config.topicForEveryTask !== null;
 
   if (!hasReminders) {
     return null;
   }
 
   const reminders: string[] = [];
+  if (config.topicForEveryTask) {
+    reminders.push(buildEveryTaskReminder({ docId: config.topicForEveryTask, seconds: config.infoValidSeconds }));
+  }
   if (config.remindMcp) {
     reminders.push(MCP_REMINDER);
   }

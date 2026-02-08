@@ -13,18 +13,26 @@ function parseArgs(params: { args: string[] }): {
 
   // Parse --reminder "message" flags (can appear multiple times)
   const customReminders: string[] = [];
+  let topicForEveryTask: string | null = null;
+  let infoValidSeconds = 60; // Default: 60 seconds
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--reminder" && i + 1 < args.length) {
       customReminders.push(args[i + 1]);
       i++; // Skip the next arg (the message)
+    } else if (args[i] === "--topic-for-every-task" && i + 1 < args.length) {
+      topicForEveryTask = args[i + 1];
+      i++; // Skip the next arg (the document id)
+    } else if (args[i] === "--info-expires" && i + 1 < args.length) {
+      infoValidSeconds = parseInt(args[i + 1], 10) || 60;
+      i++; // Skip the next arg (the seconds)
     }
   }
 
   // Filter out flags and their values to get positional args
   const positional: string[] = [];
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--reminder") {
-      i++; // Skip the message value
+    if (args[i] === "--reminder" || args[i] === "--topic-for-every-task" || args[i] === "--info-expires") {
+      i++; // Skip the value
     } else if (!args[i].startsWith("--")) {
       positional.push(args[i]);
     }
@@ -32,14 +40,14 @@ function parseArgs(params: { args: string[] }): {
 
   if (positional.length === 0) {
     console.error(
-      "Usage: mcp-interactive-instruction <markdown-directory> [--remind-mcp] [--remind-organize] [--reminder <message>]..."
+      "Usage: mcp-interactive-instruction <markdown-directory> [--remind-mcp] [--remind-organize] [--reminder <message>] [--topic-for-every-task <document-id>] [--info-expires <seconds>]..."
     );
     process.exit(1);
   }
 
   return {
     markdownDir: positional[0],
-    config: { remindMcp, remindOrganize, customReminders },
+    config: { remindMcp, remindOrganize, customReminders, topicForEveryTask, infoValidSeconds },
   };
 }
 

@@ -176,6 +176,53 @@ Optionally add flags to help AI remember to use the MCP tools:
 | `--remind-mcp` | Reminds AI to check docs before starting tasks |
 | `--remind-organize` | Reminds AI to keep docs organized (1 topic per file) |
 | `--reminder <message>` | Add custom reminder message (can be used multiple times) |
+| `--topic-for-every-task <id>` | Specify a document AI must re-read before every task |
+| `--info-expires <seconds>` | How long MCP info stays valid (default: 60). Works with `--topic-for-every-task` |
+
+### Topic for Every Task
+
+Force AI to re-read a specific document before every task. This is useful for critical rules that should never be forgotten:
+
+```json
+{
+  "args": [
+    "-y",
+    "mcp-interactive-instruction",
+    "./docs",
+    "--topic-for-every-task", "topic-for-every-task",
+    "--info-expires", "60"
+  ]
+}
+```
+
+The `--info-expires` flag tells AI that MCP information expires after N seconds and needs to be refreshed. This triggers re-reading the specified document before each task.
+
+**Best Practice:** Keep the topic-for-every-task document as a **redirect hub** rather than a detailed rule list:
+
+```markdown
+# Topic for Every Task
+
+Read these documents before starting any task:
+
+- `why-this-project` - Project concept and goals
+- `coding-rules` - Essential coding conventions
+
+## Quick Reminders
+- Use params object style for function arguments
+- All documentation must be in English
+```
+
+This approach keeps the document lightweight while ensuring AI always knows which topics to check.
+
+**Tuning `--info-expires`:** Shorter expiry times cause more frequent re-reads, ensuring rules are never forgotten. However, this consumes more context space. Adjust based on your needs:
+
+| Value | Effect |
+|-------|--------|
+| 30-60s | Frequent re-reads, higher context usage |
+| 120-300s | Balanced approach |
+| 600s+ | Rare re-reads, lower context usage |
+
+**Note:** This feature influences AI behavior but does not guarantee 100% compliance. AI may still make autonomous decisions about when to re-read documents based on context and task requirements.
 
 Example with multiple custom reminders:
 

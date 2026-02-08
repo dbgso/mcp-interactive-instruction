@@ -10,6 +10,8 @@ const DEFAULT_CONFIG: ReminderConfig = {
   remindMcp: false,
   remindOrganize: false,
   customReminders: [],
+  topicForEveryTask: null,
+  infoValidSeconds: 60,
 };
 
 export function createServer(params: {
